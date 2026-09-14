@@ -23,13 +23,15 @@ import logging
 from pathlib import Path
 from datetime import datetime, timedelta
 
+from ae_config import get_repo_root
+
 # ── CONFIGURACIÓN ──────────────────────────────────────────────────────────────
 BASE_DIR     = Path.home() / "AuthorityEngine"
 LISTA_TEMAS  = BASE_DIR / "temas_rafaga.txt"
 LOG_FILE     = BASE_DIR / "openclaw.log"
 RACHA_SCRIPT = BASE_DIR / "racha.py"
 RESULTS_FILE = BASE_DIR / "openclaw_results.json"
-REPO_ROOT    = Path.home() / ".openclaw/workspace/DAM-Java-Mastery"
+REPO_ROOT    = get_repo_root()  # AUTHORITY_ENGINE_REPO_ROOT (env var) — ver ae_config.py
 
 # ── LOGGING ────────────────────────────────────────────────────────────────────
 BASE_DIR.mkdir(parents=True, exist_ok=True)

@@ -21,10 +21,13 @@ from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 
+from ae_config import get_repo_root, get_audit_log_path
+
 # ── CONFIGURACIÓN ─────────────────────────────────────────────────────────────
 BASE_DIR       = Path.home() / "AuthorityEngine"
-REPO_DIR       = Path.home() / ".openclaw" / "workspace" / "DAM-Java-Mastery"
-AUDIT_LOG      = Path.home() / ".openclaw" / "auditoria_sre_log.json"
+# AUTHORITY_ENGINE_REPO_ROOT / AUTHORITY_ENGINE_AUDIT_LOG (env vars) — ver ae_config.py
+REPO_DIR       = get_repo_root()
+AUDIT_LOG      = get_audit_log_path()
 OUTPUT_SISTEMA = BASE_DIR / "INVENTARIO_SISTEMA.md"
 OUTPUT_MAESTRO = REPO_DIR / "INVENTARIO_MAESTRO.md"
 README         = REPO_DIR / "README.md"
@@ -34,6 +37,35 @@ DRY_RUN        = "--dry-run" in sys.argv
 EXCLUDE_DIRS   = {"__pycache__", ".git", "node_modules", ".venv", "venv"}
 MAX_LINES_CODE = 120
 MAX_LINES_LOG  = 60
+
+# ── ALLOWLIST DEL INVENTARIADOR DE CÓDIGO ─────────────────────────────────────
+# Únicos scripts cuyo contenido se vuelca en INVENTARIO_SISTEMA.md.
+# Un .py nuevo en la raíz de AuthorityEngine (p. ej. una herramienta de un
+# cliente ajeno) NO se descubre automáticamente — debe añadirse aquí a mano.
+PIPELINE_SCRIPTS = [
+    "engine.py",
+    "racha.py",
+    "cure.py",
+    "openclaw_v9.py",
+    "generar_inventario.py",
+]
+
+# Patrones simples para detectar secretos hardcodeados evidentes antes de
+# volcar el contenido de un script. No es un scanner genérico — solo evita
+# repetir el incidente conocido de credenciales literales en variables tipo
+# API_KEY / TOKEN / SECRET / PASSWORD, o claves de acceso AWS.
+PATRONES_SECRETO = [
+    re.compile(r'API[_-]?KEY\s*=\s*["\'][^"\']+["\']', re.I),
+    re.compile(r'SECRET\s*=\s*["\'][^"\']+["\']', re.I),
+    re.compile(r'TOKEN\s*=\s*["\'][^"\']+["\']', re.I),
+    re.compile(r'PASSWORD\s*=\s*["\'][^"\']+["\']', re.I),
+    re.compile(r'AKIA[0-9A-Z]{16}'),
+]
+
+
+def contiene_posible_secreto(texto: str) -> bool:
+    """Comprobación simple de patrones evidentes de secretos hardcodeados."""
+    return any(p.search(texto) for p in PATRONES_SECRETO)
 
 # Umbral de similitud para marcar [x] en el roadmap
 # 0.35 = permisivo (más matches), 0.50 = estricto (menos matches)
@@ -442,7 +474,17 @@ def generar_inventario_sistema() -> str:
         "",
     ]
 
-    py_files  = sorted(BASE_DIR.glob("*.py"))
+    # Allowlist explícita — NO se descubre automáticamente con glob.
+    # Un .py nuevo en la raíz de AuthorityEngine que no esté en
+    # PIPELINE_SCRIPTS no se inventaría ni se vuelca aquí.
+    py_files = []
+    for nombre in PIPELINE_SCRIPTS:
+        ruta = BASE_DIR / nombre
+        if ruta.exists():
+            py_files.append(ruta)
+        else:
+            print(f"⚠️  Inventario: script del pipeline no encontrado, se omite: {nombre}")
+
     all_files = [f for f in BASE_DIR.rglob("*") if f.is_file()
                  and not any(ex in f.parts for ex in EXCLUDE_DIRS)]
     total_size = sum(f.stat().st_size for f in all_files)
@@ -487,6 +529,13 @@ def generar_inventario_sistema() -> str:
     lines += ["## Codigo Fuente (archivos .py)", ""]
     for py in py_files:
         content, total = read_file(py)
+        if contiene_posible_secreto(content):
+            print(f"🔐 Posible secreto detectado en {py.name} — contenido omitido del inventario")
+            content = (
+                "⚠️  CONTENIDO OMITIDO — se detectó un posible secreto hardcodeado\n"
+                "   (patrón tipo API_KEY/TOKEN/SECRET/PASSWORD) en este archivo.\n"
+                "   Revísalo manualmente antes de incluirlo en el inventario."
+            )
         lines += [
             f"### `{py.name}`",
             "",

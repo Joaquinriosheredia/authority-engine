@@ -22,6 +22,8 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
+from ae_config import get_repo_root
+
 # ================== CONFIG ==================
 CONFIG = {
     "MODEL": "qwen2.5:7b",
@@ -30,7 +32,8 @@ CONFIG = {
     "MIN_WORDS": 300,
     "SCORE_ACCEPTABLE": 70,
     "SCORE_DEPLOY": 72,
-    "REPO_ROOT": "/home/usuariojoaquin/.openclaw/workspace/DAM-Java-Mastery",
+    # AUTHORITY_ENGINE_REPO_ROOT (env var) — ver ae_config.py
+    "REPO_ROOT": str(get_repo_root()),
     "REVIEW_DIR": "_Review",
     "ELITE_DOMAINS": [
         "spring.io", "github.com", "stackoverflow.com", "baeldung.com",
