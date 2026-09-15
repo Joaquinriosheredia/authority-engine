@@ -1,0 +1,19 @@
+# Authority Engine — dependencias Python del pipeline
+#
+# Generado manualmente a partir de los imports reales auditados en:
+#   engine.py, racha.py, cure.py, openclaw_v9.py, generar_inventario.py, ae_config.py
+#
+# NO generado con `pip freeze`. El venv/ actual contiene ~48 paquetes;
+# la mayoría son residuos de otros experimentos y no los usa el pipeline.
+#
+# requests        — engine.py: llamadas a Ollama local, Hacker News (Algolia)
+#                   y GitHub Search API. Dependencia obligatoria.
+# tavily-python   — engine.py: import perezoso (solo si TAVILY_KEY está
+#                   definida). Si falta, el pipeline degrada sin esa fuente.
+# boto3           — generar_inventario.py: import perezoso, solo se usa si
+#                   se invoca la subida a S3. Si falta o falla, el resto del
+#                   script continúa (el error se captura y se informa).
+
+requests==2.33.0
+tavily-python==0.7.23
+boto3==1.42.83

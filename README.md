@@ -7,35 +7,138 @@
 ![Score](https://img.shields.io/badge/Quality_Score-99%2F100-brightgreen?style=flat)
 ![Open Source](https://img.shields.io/badge/LangChain4j-Contributor-orange?style=flat)
 
-Staff Engineer-level technical reference library on Java 21, distributed architectures, SRE, security and AI systems. Generated and maintained with **Authority Engine v21.0** — a hybrid local AI + cloud pipeline.
+Staff Engineer-level technical reference library on Java 21, distributed architectures, SRE, security and AI systems. Generated and maintained with **Authority Engine v21.0** — a local AI pipeline with human-reviewed publishing.
 
 ---
 
-## ⚡ Authority Engine v21.0 — Production Pipeline
+## ⚡ Authority Engine — Content Generation Pipeline
 
-This repository is not generic documentation. Every document passes through a 4-layer pipeline before publishing:
+This repository is not generic documentation. Every document is generated and scored by **Authority Engine**, a set of Python scripts (not a packaged application, not a deployed service) that runs locally and is invoked manually.
+
+Actual flow, as implemented in the code today:
 
 ```
-Tavily API (real-time sources)
+1. A topic ("tema") is provided — manually, or read from temas_rafaga.txt
         ↓
-Ollama + Qwen 7b on GPU RTX 4060
-7.48 tok/s (CPU) → 48.55 tok/s (GPU) — 6x improvement
+2. engine.py builds section-specific prompts and calls a local
+   Ollama instance (model qwen2.5:7b, endpoint http://localhost:11434)
         ↓
-Automated Quality Auditor (score 0-100, min threshold: 85)
+   Optional context sources queried per section:
+     - Tavily API   — only if TAVILY_KEY is set; skipped otherwise
+     - Hacker News (Algolia) and GitHub Search — public, no auth
         ↓
-AWS Lambda (Python 3.12) + S3 + GitHub
-Zero manual intervention — single command deployment
+3. Each section is scored by an automated auditor.
+   Current thresholds in engine.py: SCORE_ACCEPTABLE = 70,
+   SCORE_DEPLOY = 72 (0-100 scale)
+        ↓
+4. If the document passes, engine.py runs git add/commit/push
+   against the external DAM-Java-Mastery content repository
+        ↓
+5. generar_inventario.py (run separately, not automatically) rebuilds
+   INVENTARIO_SISTEMA.md / INVENTARIO_MAESTRO.md, updates README
+   badges and ROADMAP_TEMAS.md, and — only if invoked with that
+   option — can upload the generated documents to an S3 bucket via
+   boto3 using the standard AWS credential chain. This upload is
+   optional; the script continues if it is not configured or fails.
 ```
 
-**Stack:** Python 3.12 · Ollama · Qwen 7b · AWS Lambda · S3 · boto3 · Tavily API · GitHub Actions
+**Stack actually used by the pipeline:** Python 3.12 · Ollama (`qwen2.5:7b`) · `requests` · `tavily-python` (optional) · `boto3` (optional, S3 upload only) · Git.
 
-**Key metrics:**
-- 47 Staff Engineer documents published
-- Average quality score: 99/100
-- GPU optimisation: 7.48 → 48.55 tok/s (6x)
-- Full automation: local generation → S3 → GitHub with a single command
+This is **not** a hands-off pipeline: starting Ollama, invoking the scripts, providing topics, and (for `cure.py`) supplying corrected documents are manual steps. There is no AWS Lambda deployment, no distributed architecture, and no production service — everything above runs as local scripts.
+
+See [Setup & Execution](#-setup--execution) below for how to run it.
 
 📄 [Architecture Decision Record — GPU Optimisation](./02_Arquitectura/ADR-001-GPU-Acceleration.md)
+
+---
+
+## 🛠️ Setup & Execution
+
+### Requirements
+
+- **Python 3.12** (the only version currently verified; see `.python-version`)
+- **[Ollama](https://ollama.com)** installed and running locally, with the `qwen2.5:7b` model pulled:
+  ```bash
+  ollama pull qwen2.5:7b
+  ```
+  The pipeline calls Ollama at `http://localhost:11434` (hardcoded in `engine.py`, not currently configurable via environment variable).
+- **Git**, available on `PATH` and with push credentials configured — `engine.py`, `cure.py` and `generar_inventario.py` run `git add / commit / push` directly via `subprocess`.
+- A local clone of the external content repository **DAM-Java-Mastery**, which is where generated documents and inventories are actually written. By default expected at `~/.openclaw/workspace/DAM-Java-Mastery`, or wherever `AUTHORITY_ENGINE_REPO_ROOT` points (see below).
+
+### Installing Python dependencies
+
+```bash
+python3.12 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+`requirements.txt` covers only the third-party packages the pipeline scripts actually import: `requests` (required by `engine.py`), `tavily-python` and `boto3` (both optional, lazily imported only when their respective feature is used).
+
+### Configuration (`.env`)
+
+Copy `.env.example` to `.env` and fill in what you need:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Required? | Used by | Effect if missing |
+|---|---|---|---|
+| `TAVILY_KEY` | Optional | `engine.py` | Tavily is skipped; pipeline continues with Hacker News + GitHub Search only |
+| `AUTHORITY_ENGINE_REPO_ROOT` | Optional | `ae_config.py` (shared by `engine.py`, `openclaw_v9.py`, `generar_inventario.py`) | Falls back to `~/.openclaw/workspace/DAM-Java-Mastery` |
+| `AUTHORITY_ENGINE_AUDIT_LOG` | Optional | `ae_config.py` (used by `generar_inventario.py`) | Falls back to `~/.openclaw/auditoria_sre_log.json` |
+| AWS credentials | Optional | `generar_inventario.py` (S3 upload only) | Uses the standard AWS credential chain (env vars, `~/.aws/credentials`, or IAM role) — not read from `.env`. If absent, the S3 upload fails in a controlled way and the script continues |
+
+None of these variables are required to run `engine.py` for a single document — Ollama is the only hard dependency.
+
+### External services / dependencies at a glance
+
+| Dependency | Required? | Notes |
+|---|---|---|
+| Ollama + `qwen2.5:7b` | **Yes** — hard dependency | Local, no network egress required for generation itself |
+| Git remote + push credentials | Yes, for publishing | Without them, `git push` in `engine.py`/`cure.py`/`generar_inventario.py` fails |
+| DAM-Java-Mastery external repo | Yes | Destination for generated docs and inventories |
+| Hacker News (Algolia), GitHub Search API | Optional | Public, unauthenticated, used as extra context |
+| Tavily API | Optional | Requires `TAVILY_KEY` |
+| AWS S3 (via `boto3`) | Optional | Used only by `generar_inventario.py`'s upload step; standard AWS credential chain, not a required part of the main flow |
+
+### Running the pipeline
+
+These scripts are invoked directly (`python3 <script>.py ...`); the project is not installed as a package.
+
+```bash
+source venv/bin/activate
+
+# Generate a single document for one topic
+python3 engine.py "Nombre del tema"
+
+# Run one topic through the orchestrator (logging + metrics)
+python3 racha.py "Nombre del tema"
+
+# Run a burst of topics from temas_rafaga.txt, with retries/cooldown
+python3 openclaw_v9.py --modo <modo>
+
+# Regenerate INVENTARIO_SISTEMA.md / INVENTARIO_MAESTRO.md / ROADMAP_TEMAS.md
+python3 generar_inventario.py
+```
+
+Run `--help` on `openclaw_v9.py` / `racha.py` for their actual CLI flags (e.g. `--dry-run`, `--retry`, `--cooldown`) before running a batch.
+
+### Role of each script
+
+| Script | Role |
+|---|---|
+| `engine.py` | Core generator: builds prompts, calls Ollama, scores each section, and commits/pushes the document if it passes the quality thresholds |
+| `racha.py` | Orchestrator ("Director Maestro"): runs `engine.py` for one topic, capturing output and updating streak/metrics files |
+| `cure.py` | Manual correction tool ("Cirujano"): replaces a document with a corrected version (e.g. one fixed by hand), re-scores it, backs up the original, and commits/pushes — a human-in-the-loop step, not automatic |
+| `openclaw_v9.py` | Burst operator: runs `racha.py` over a list of topics with per-topic timeout, retries and cooldown, persisting results to `openclaw_results.json` |
+| `generar_inventario.py` | Inventory builder: regenerates `INVENTARIO_SISTEMA.md` / `INVENTARIO_MAESTRO.md`, updates README badges and `ROADMAP_TEMAS.md`, and can optionally upload documents to S3 |
+| `ae_config.py` | Shared configuration: resolves `AUTHORITY_ENGINE_REPO_ROOT` and `AUTHORITY_ENGINE_AUDIT_LOG` from the environment, with defaults |
+
+### Known limitation
+
+`racha.py` launches `engine.py` via a hardcoded `python3` on `PATH` rather than the interpreter running `racha.py` itself. If you invoke `openclaw_v9.py`/`racha.py` from inside `venv/`, make sure the venv's `python3` is the one resolved on `PATH` (e.g. keep the venv activated), or the `engine.py` subprocess may run outside the venv and fail to import `requests`. This is a known issue, not fixed in this phase.
 
 ---
 
@@ -170,8 +273,12 @@ Zero manual intervention — single command deployment
 | Staff Engineer documents | 47 |
 | Modules with content | 9 / 10 |
 | Average quality score | 99 / 100 |
-| GPU optimisation | 7.48 → 48.55 tok/s (6x) |
 | Last updated | April 2026 |
+
+> GPU/throughput figures previously listed here were not re-verified during
+> the Phase 3 reproducibility audit and have been removed rather than
+> restated as current fact. See [Setup & Execution](#-setup--execution)
+> for what is actually verified (Ollama + `qwen2.5:7b`, no benchmark claims).
 
 ---
 
@@ -182,4 +289,4 @@ Java 21 Engineer · AI & Agents · Cloud AWS · Backend
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=flat&logo=linkedin)](https://www.linkedin.com/in/joaquinrios-dev-strategist/)
 
-*Generated with Authority Engine v21.0 — Hybrid local AI pipeline + AWS cloud deployment*
+*Generated with Authority Engine — a local pipeline (Ollama + scripted quality gate + Git automation). See [Setup & Execution](#-setup--execution) for how it actually runs.*

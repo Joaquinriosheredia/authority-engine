@@ -1,3 +1,30 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
+
+# Secretos / configuración local (ver .env.example)
+.env
+
+# Logs generados por el pipeline (engine.py, racha.py, openclaw_v9.py)
+engine.log
+racha.log
+openclaw.log
+*.log
+
+# Caches y estado generados por el pipeline (no son código fuente)
+section_cache.json
+score_historico.json
+racha_metrics.json
+openclaw_results.json
+
+# Backups y temporales
+*.bak
+*_backup.py
+*.tmp
+*.swp
+
+# Artefactos ajenos a Authority Engine detectados en la raíz del repo
+# (traducciones/zips de otro proyecto, no forman parte del pipeline)
+*.xliff
+*.zip
