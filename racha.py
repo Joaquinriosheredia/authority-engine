@@ -18,14 +18,16 @@ import json
 from pathlib import Path
 from datetime import datetime
 
+from ae_config import get_base_dir
+
 # ── Config ────────────────────────────────────────────────────────────────────
 
-BASE_PATH = Path.home()
+BASE_PATH = get_base_dir()
 
 CONFIG = {
-    "engine_path":   BASE_PATH / "AuthorityEngine/engine.py",
-    "log_file":      BASE_PATH / "AuthorityEngine/racha.log",
-    "metrics_file":  BASE_PATH / "AuthorityEngine/racha_metrics.json",
+    "engine_path":   BASE_PATH / "engine.py",
+    "log_file":      BASE_PATH / "racha.log",
+    "metrics_file":  BASE_PATH / "racha_metrics.json",
 }
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -68,7 +70,7 @@ def ejecutar_engine(tema: str) -> bool:
     Llama a engine.py pasando solo el tema.
     engine.py v20.0 gestiona internamente la ruta y la categoría.
     """
-    cmd = ["python3", "-u", str(CONFIG["engine_path"]), tema]
+    cmd = [sys.executable, "-u", str(CONFIG["engine_path"]), tema]
     log.info(f"🚀 Ejecutando: {' '.join(cmd)}")
 
     try:
@@ -135,7 +137,7 @@ def main():
     if exito:
         print(f"\n✅ Borrador en _Review/ — descárgalo de GitHub y adjúntalo a Claude")
     else:
-        print(f"\n❌ ERROR — revisa ~/AuthorityEngine/racha.log")
+        print(f"\n❌ ERROR — revisa {CONFIG['log_file']}")
 
 # ── Entry ─────────────────────────────────────────────────────────────────────
 

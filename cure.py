@@ -22,7 +22,7 @@ try:
     from engine import evaluar, CONFIG, log
 except ImportError as e:
     print(f"❌ No se pudo importar engine.py: {e}")
-    print("   Ejecuta cure.py desde ~/AuthorityEngine/")
+    print("   Ejecuta cure.py desde el directorio del repo (junto a engine.py)")
     sys.exit(1)
 
 REPO_ROOT = Path(CONFIG["REPO_ROOT"])

@@ -43,3 +43,15 @@ def get_audit_log_path() -> Path:
     """
     valor = os.environ.get("AUTHORITY_ENGINE_AUDIT_LOG")
     return Path(valor).expanduser() if valor else DEFAULT_AUDIT_LOG
+
+
+def get_base_dir() -> Path:
+    """Directorio donde vive el pipeline (este propio repositorio).
+
+    A diferencia de get_repo_root()/get_audit_log_path(), esta ruta no es
+    configurable por variable de entorno: se deriva de la ubicación real
+    de ae_config.py, para que el pipeline funcione sin importar en qué
+    directorio se haya clonado (sustituye el antiguo hardcode a
+    ~/AuthorityEngine repetido en 5 scripts).
+    """
+    return Path(__file__).resolve().parent

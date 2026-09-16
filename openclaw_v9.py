@@ -23,10 +23,10 @@ import logging
 from pathlib import Path
 from datetime import datetime, timedelta
 
-from ae_config import get_repo_root
+from ae_config import get_repo_root, get_base_dir
 
 # ── CONFIGURACIÓN ──────────────────────────────────────────────────────────────
-BASE_DIR     = Path.home() / "AuthorityEngine"
+BASE_DIR     = get_base_dir()
 LISTA_TEMAS  = BASE_DIR / "temas_rafaga.txt"
 LOG_FILE     = BASE_DIR / "openclaw.log"
 RACHA_SCRIPT = BASE_DIR / "racha.py"

@@ -21,10 +21,10 @@ from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 
-from ae_config import get_repo_root, get_audit_log_path
+from ae_config import get_repo_root, get_audit_log_path, get_base_dir
 
 # ── CONFIGURACIÓN ─────────────────────────────────────────────────────────────
-BASE_DIR       = Path.home() / "AuthorityEngine"
+BASE_DIR       = get_base_dir()
 # AUTHORITY_ENGINE_REPO_ROOT / AUTHORITY_ENGINE_AUDIT_LOG (env vars) — ver ae_config.py
 REPO_DIR       = get_repo_root()
 AUDIT_LOG      = get_audit_log_path()

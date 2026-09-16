@@ -22,7 +22,7 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
-from ae_config import get_repo_root
+from ae_config import get_repo_root, get_base_dir
 
 # ================== CONFIG ==================
 CONFIG = {
@@ -208,7 +208,7 @@ def acquire_lock():
     atexit.register(lambda: os.remove(LOCK_FILE) if os.path.exists(LOCK_FILE) else None)
 
 # ================== LOG ==================
-LOG_FILE = Path.home() / "AuthorityEngine/engine.log"
+LOG_FILE = get_base_dir() / "engine.log"
 LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 def log(msg):
@@ -227,7 +227,7 @@ def limpiar_texto(texto):
     return texto
 
 # ================== CACHE ==================
-CACHE_FILE = Path.home() / "AuthorityEngine/section_cache.json"
+CACHE_FILE = get_base_dir() / "section_cache.json"
 CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 sec_cache = {}
@@ -661,7 +661,7 @@ def generate_report(tema):
     # Guardar score en historico JSON
     import json as _json
     from datetime import datetime as _dt
-    hist_file = Path.home() / "AuthorityEngine/score_historico.json"
+    hist_file = get_base_dir() / "score_historico.json"
     hist = []
     if hist_file.exists():
         try:
