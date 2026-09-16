@@ -622,12 +622,14 @@ def generate_report(tema):
 
     results = {}
     scores  = []
+    tiene_seccion_fallida = False
 
     for sec in secciones:
         contenido, score = generar_seccion(tema, sec, contexto_general, results)
         results[sec] = contenido
-        if score >= 50:
-            scores.append(score)
+        scores.append(score)
+        if score == 0 or contenido == "ERROR_IA":
+            tiene_seccion_fallida = True
         log(f"{'✅' if score >= CONFIG['SCORE_ACCEPTABLE'] else '⚠️ '} {sec}: {score}")
 
     total    = sum(scores) // len(scores) if scores else 0
@@ -644,6 +646,8 @@ def generate_report(tema):
     path    = os.path.join(review_dir, archivo)
 
     with open(path, "w") as f:
+        if tiene_seccion_fallida:
+            f.write(f"⚠️ ADVERTENCIA: Este documento contiene al menos una sección con fallo de generación (score 0 / ERROR_IA). Revisar antes de publicar.\n\n")
         f.write(f"# {tema}\n\n")
         f.write(f"PATH_LOCAL: {path}\n")
         f.write(f"CATEGORIA: {categoria}\n")
@@ -656,7 +660,10 @@ def generate_report(tema):
     log(f"📂 Categoría: {categoria}")
     log(f"📊 Score: {total} | Secciones: {len(secciones)}")
 
-    git_push_review(path, tema, total)
+    if tiene_seccion_fallida:
+        log(f"🚨 Documento NO publicado automáticamente — contiene al menos una sección fallida (score 0 / ERROR_IA): {tema}")
+    else:
+        git_push_review(path, tema, total)
 
     # Guardar score en historico JSON
     import json as _json
@@ -674,7 +681,8 @@ def generate_report(tema):
         "categoria": categoria,
         "secciones": len(secciones),
         "fecha": _dt.now().strftime("%Y-%m-%d %H:%M"),
-        "aprobado": total >= CONFIG["SCORE_DEPLOY"]
+        "tiene_seccion_fallida": tiene_seccion_fallida,
+        "aprobado": total >= CONFIG["SCORE_DEPLOY"] and not tiene_seccion_fallida
     })
     hist_file.write_text(_json.dumps(hist, ensure_ascii=False, indent=2))
 
