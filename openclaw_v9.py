@@ -17,6 +17,7 @@ import re
 import sys
 import time
 import json
+import signal
 import argparse
 import subprocess
 import logging
@@ -97,7 +98,8 @@ def tema_existe_en_repo(tema: str) -> bool:
 def ejecutar_tema(tema: str, modo: str, timeout: int, dry_run: bool) -> bool:
     """
     Lanza racha.py para un tema. Retorna True si éxito.
-    - timeout: segundos máximos antes de matar el proceso
+    - timeout: segundos máximos antes de matar el grupo de procesos completo
+      (racha.py + cualquier engine.py que haya lanzado)
     - dry_run: solo imprime el comando, no ejecuta
     """
     cmd = [sys.executable, str(RACHA_SCRIPT), tema]
@@ -110,15 +112,20 @@ def ejecutar_tema(tema: str, modo: str, timeout: int, dry_run: bool) -> bool:
         # En dry-run mostramos el comando y simulamos éxito
         return True
 
+    proceso = None
     try:
-        proceso = subprocess.run(
-            cmd,
-            timeout=timeout   # ← Fix crítico: evita cuelgues infinitos
-        )
+        proceso = subprocess.Popen(cmd, start_new_session=True)
+        proceso.wait(timeout=timeout)
         return proceso.returncode == 0
 
     except subprocess.TimeoutExpired:
-        log.error(f"⏰ TIMEOUT ({timeout}s) alcanzado para: '{tema}'")
+        log.error(f"⏰ TIMEOUT ({timeout}s) alcanzado para: '{tema}' — matando grupo de procesos completo")
+        try:
+            os.killpg(os.getpgid(proceso.pid), signal.SIGKILL)
+            proceso.wait()  # reap: evita dejar un proceso zombie
+            log.error(f"🔪 Grupo de procesos de '{tema}' terminado (racha.py + posibles hijos como engine.py)")
+        except ProcessLookupError:
+            log.warning(f"⚠️  El grupo de procesos de '{tema}' ya no existía al intentar matarlo")
         return False
     except Exception as e:
         log.error(f"❌ Excepción ejecutando '{tema}': {e}")
