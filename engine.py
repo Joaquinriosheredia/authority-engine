@@ -412,20 +412,22 @@ def git_push_review(path, tema, score):
 
         result = subprocess.run(
             ["git", "pull", "--rebase"],
-            capture_output=True, text=True
+            capture_output=True, text=True, timeout=30
         )
         if result.returncode != 0:
             log("⚠️  git pull conflicto — abortando rebase")
-            subprocess.run(["git", "rebase", "--abort"], check=False)
+            subprocess.run(["git", "rebase", "--abort"], check=False, timeout=10)
             return
 
-        subprocess.run(["git", "add", path], check=True)
+        subprocess.run(["git", "add", path], check=True, timeout=30)
         subprocess.run(["git", "commit", "-m",
             f"draft: {tema} (Score:{score}) — pendiente revisión Claude"],
-            check=True)
-        subprocess.run(["git", "push"], check=True)
+            check=True, timeout=30)
+        subprocess.run(["git", "push"], check=True, timeout=60)
 
         log("✅ Borrador publicado en _Review/ en GitHub")
+    except subprocess.TimeoutExpired as e:
+        log(f"⏰ Git timeout ({e.timeout}s) en '{e.cmd}' — abortando publicación")
     except Exception as e:
         log(f"⚠️  Git fallo: {e}")
 

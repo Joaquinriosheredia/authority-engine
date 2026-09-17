@@ -703,7 +703,7 @@ def publicar_en_github():
     try:
         subprocess.run(
             ["git", "add", "INVENTARIO_MAESTRO.md", "README.md"],
-            check=True, cwd=REPO_DIR
+            check=True, cwd=REPO_DIR, timeout=30
         )
 
         status = git_cmd(["diff", "--cached", "--name-only"], cwd=REPO_DIR)
@@ -712,23 +712,25 @@ def publicar_en_github():
             return
 
         msg = f"chore: actualizar inventario y README [{datetime.now().strftime('%Y-%m-%d %H:%M')}]"
-        subprocess.run(["git", "commit", "-m", msg], check=True, cwd=REPO_DIR)
+        subprocess.run(["git", "commit", "-m", msg], check=True, cwd=REPO_DIR, timeout=30)
 
         print("🔄 Sincronizando con remoto...")
         result = subprocess.run(
             ["git", "pull", "--rebase", "origin", "main"],
-            cwd=REPO_DIR, capture_output=True, text=True
+            cwd=REPO_DIR, capture_output=True, text=True, timeout=30
         )
         if result.returncode != 0:
             print(f"⚠️  git pull error: {result.stderr[:200]}")
-            subprocess.run(["git", "rebase", "--abort"], cwd=REPO_DIR, check=False)
+            subprocess.run(["git", "rebase", "--abort"], cwd=REPO_DIR, check=False, timeout=10)
             return
 
-        subprocess.run(["git", "push"], check=True, cwd=REPO_DIR)
+        subprocess.run(["git", "push"], check=True, cwd=REPO_DIR, timeout=60)
         print("🚀 Inventario publicado en GitHub correctamente")
 
         subir_docs_a_s3()
 
+    except subprocess.TimeoutExpired as e:
+        print(f"⏰ Git timeout ({e.timeout}s) en '{e.cmd}' — abortando publicación")
     except subprocess.CalledProcessError as e:
         stderr = e.stderr.decode()[:300] if e.stderr else "sin detalles"
         print(f"❌ Git error: {e.cmd} → {stderr}")
