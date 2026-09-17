@@ -199,8 +199,12 @@ def acquire_lock():
             os.kill(pid, 0)
             print("❌ Otro proceso en ejecución")
             exit(1)
-        except:
+        except ProcessLookupError:
             os.remove(LOCK_FILE)
+        except Exception as e:
+            print(f"❌ No se puede verificar el lock de forma segura ({type(e).__name__}: {e}) "
+                  f"— asumiendo que hay un proceso en ejecución y negando el arranque")
+            exit(1)
 
     with open(LOCK_FILE, "w") as f:
         f.write(str(os.getpid()))
