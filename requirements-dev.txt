@@ -1,0 +1,4 @@
+# Dependencias de DESARROLLO (tests) — separadas de requirements.txt
+# (que documenta solo las dependencias de producción del pipeline).
+# No se instalan en el venv de producción; usar en un entorno de test aparte.
+pytest==9.1.1
