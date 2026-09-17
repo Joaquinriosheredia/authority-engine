@@ -53,13 +53,23 @@ PIPELINE_SCRIPTS = [
 # Patrones simples para detectar secretos hardcodeados evidentes antes de
 # volcar el contenido de un script. No es un scanner genérico — solo evita
 # repetir el incidente conocido de credenciales literales en variables tipo
-# API_KEY / TOKEN / SECRET / PASSWORD, o claves de acceso AWS.
+# API_KEY / TOKEN / SECRET / PASSWORD, claves de acceso AWS, o el valor
+# aislado (sin "API_KEY=" delante) de una key de Tavily o DeepL — los dos
+# servicios que usa/usó este pipeline (ver TAVILY_KEY en .env.example y el
+# incidente histórico de la key de DeepL expuesta en INVENTARIO_SISTEMA.md).
 PATRONES_SECRETO = [
     re.compile(r'API[_-]?KEY\s*=\s*["\'][^"\']+["\']', re.I),
     re.compile(r'SECRET\s*=\s*["\'][^"\']+["\']', re.I),
     re.compile(r'TOKEN\s*=\s*["\'][^"\']+["\']', re.I),
     re.compile(r'PASSWORD\s*=\s*["\'][^"\']+["\']', re.I),
     re.compile(r'AKIA[0-9A-Z]{16}'),
+    # Tavily: prefijo "tvly-" + 40 caracteres alfanuméricos.
+    re.compile(r'tvly-[A-Za-z0-9]{40}'),
+    # DeepL: UUID + sufijo de plan (":fx" confirmado en la documentación
+    # oficial para el plan Free; ":pro" no está documentado públicamente
+    # para el plan de pago, se incluye de forma defensiva sin coste de
+    # falsos positivos porque exige igualmente el sufijo).
+    re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:(fx|pro)', re.I),
 ]
 
 
