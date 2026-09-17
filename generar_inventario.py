@@ -403,12 +403,12 @@ def actualizar_readme():
 
         nuevas_secciones[carpeta.name] = tabla
 
-    indice_nuevo = "\n## 📚 Índice de Documentos por Módulo\n\n"
+    indice_nuevo = "\n## 📚 Document Index\n\n"
     for carpeta in carpetas_ordenadas:
         indice_nuevo += nuevas_secciones.get(carpeta.name, "") + "\n---\n\n"
 
     stats_nuevas = (
-        "## 📊 Estadísticas del Repositorio\n\n"
+        "## 📊 Repository Stats\n\n"
         "| Métrica | Valor |\n"
         "|---------|-------|\n"
         f"| Documentos Staff publicados | {total_docs} |\n"
@@ -419,34 +419,42 @@ def actualizar_readme():
         f"| Última actualización | {hoy} |\n"
     )
 
-    readme_content = re.sub(
-        r'!\[Documentos\]\(https://img\.shields\.io/badge/Documentos_Staff-\d+-green',
-        f'![Documentos](https://img.shields.io/badge/Documentos_Staff-{total_docs}-green',
+    readme_content, n = re.subn(
+        r'!\[Docs\]\(https://img\.shields\.io/badge/Staff_Docs-\d+-green(?:\?style=flat)?\)',
+        f'![Docs](https://img.shields.io/badge/Staff_Docs-{total_docs}-green?style=flat)',
         readme_content
     )
+    if n == 0:
+        print("⚠️  Badge 'Staff_Docs' no encontrado en README — no se actualizó")
 
     historico = cargar_historico_sre()
     scores = [e.get("score", 0) for e in historico]
     score_real = round(sum(scores) / len(scores), 1) if scores else 94
-    readme_content = re.sub(
-        r'!\[Calidad\]\(https://img\.shields\.io/badge/SRE_Score-[\d%2F]+-brightgreen\?style=flat\)',
-        f'![Calidad](https://img.shields.io/badge/SRE_Score-{score_real}%2F100-brightgreen?style=flat)',
+    readme_content, n = re.subn(
+        r'!\[Score\]\(https://img\.shields\.io/badge/Quality_Score-[\d.]+%2F100-brightgreen\?style=flat\)',
+        f'![Score](https://img.shields.io/badge/Quality_Score-{score_real}%2F100-brightgreen?style=flat)',
         readme_content
     )
+    if n == 0:
+        print("⚠️  Badge 'Quality_Score' no encontrado en README — no se actualizó")
 
-    readme_content = re.sub(
-        r'## 📚 Índice de Documentos por Módulo.*?(?=## 📊)',
+    readme_content, n = re.subn(
+        r'## 📚 Document Index.*?(?=## 📊 Repository Stats)',
         indice_nuevo,
         readme_content,
         flags=re.DOTALL
     )
+    if n == 0:
+        print("⚠️  Sección '## 📚 Document Index' no encontrada en README — no se actualizó")
 
-    readme_content = re.sub(
-        r'## 📊 Estadísticas del Repositorio.*?(?=## 🎯)',
+    readme_content, n = re.subn(
+        r'## 📊 Repository Stats.*?(?=## 👤 Author)',
         stats_nuevas + "\n\n",
         readme_content,
         flags=re.DOTALL
     )
+    if n == 0:
+        print("⚠️  Sección '## 📊 Repository Stats' no encontrada en README — no se actualizó")
 
     if DRY_RUN:
         print(f"[DRY-RUN] README.md se actualizaría con {total_docs} documentos Staff")
