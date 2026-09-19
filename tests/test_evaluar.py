@@ -111,16 +111,47 @@ class TestEvaluarCasosBase:
         score, errores = evaluar(texto)
         assert "record_no_puede_usar_extends" in errores
 
-    def test_record_extends_separado_por_salto_de_linea_no_detectado(self):
-        """Comportamiento REAL actual: el regex r'\\brecord\\b.*extends'
-        no usa re.DOTALL, así que '.' no cruza saltos de línea. Si "record"
-        y "extends" quedan en líneas distintas, NO se detecta el error,
-        aunque el código Java resultante siga siendo inválido.
-        Este test documenta la limitación, no la corrige.
+    def test_record_extends_separado_por_salto_de_linea_detectado(self):
+        """El regex acota el rango a la firma de la declaración
+        (r'\\brecord\\b(?:[^{;`.]|\\.(?=\\w))*\\bextends\\b'): la clase negada
+        cruza saltos de línea, así que "extends" en la línea siguiente
+        dentro de la firma SÍ se detecta.
         """
         texto = (
             texto_largo()
             + "\n```java\npublic record Foo(int x)\n    extends Bar {}\n```"
+            + "\n```mermaid\ngraph TD\n```"
+        )
+        score, errores = evaluar(texto)
+        assert "record_no_puede_usar_extends" in errores
+
+    def test_record_extends_con_identificador_con_punto_detectado(self):
+        """Un punto seguido de \\w (java.util.List) no corta el rango."""
+        texto = (
+            texto_largo()
+            + "\n```java\npublic record Foo(java.util.List<String> xs)\n    extends Bar {}\n```"
+            + "\n```mermaid\ngraph TD\n```"
+        )
+        score, errores = evaluar(texto)
+        assert "record_no_puede_usar_extends" in errores
+
+    def test_record_en_prosa_y_extends_no_relacionado_no_detectado(self):
+        """Falso positivo evitado: 'record' en prosa y una clase con extends
+        más adelante, sin { ni ; entre medias, ya no dispara el error
+        porque el punto + espacio/salto de línea corta el rango."""
+        texto = (
+            texto_largo()
+            + "\nUsa un record aquí.\nLuego class A extends B"
+            + "\n```java\nclass Foo {}\n```"
+            + "\n```mermaid\ngraph TD\n```"
+        )
+        score, errores = evaluar(texto)
+        assert "record_no_puede_usar_extends" not in errores
+
+    def test_record_valido_y_clase_extends_posterior_no_detectado(self):
+        texto = (
+            texto_largo()
+            + "\n```java\nrecord Foo(int x) {}\nclass A extends B {}\n```"
             + "\n```mermaid\ngraph TD\n```"
         )
         score, errores = evaluar(texto)

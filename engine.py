@@ -403,7 +403,7 @@ def evaluar(texto):
         score -= 20
         errores.append("setter_detectado")
 
-    if re.search(r'\brecord\b.*extends', texto, re.I):
+    if re.search(r'\brecord\b(?:[^{;`.]|\.(?=\w))*\bextends\b', texto, re.I):
         score -= 40
         errores.append("record_no_puede_usar_extends")
 
