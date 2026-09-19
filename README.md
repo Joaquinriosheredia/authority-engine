@@ -138,9 +138,22 @@ Run `--help` on `openclaw_v9.py` / `racha.py` for their actual CLI flags (e.g. `
 | `generar_inventario.py` | Inventory builder: regenerates `INVENTARIO_SISTEMA.md` / `INVENTARIO_MAESTRO.md`, updates README badges and `ROADMAP_TEMAS.md`, and can optionally upload documents to S3 |
 | `ae_config.py` | Shared configuration: resolves `AUTHORITY_ENGINE_REPO_ROOT` and `AUTHORITY_ENGINE_AUDIT_LOG` from the environment, with defaults |
 
-### Known limitation
+---
 
-`racha.py` launches `engine.py` via a hardcoded `python3` on `PATH` rather than the interpreter running `racha.py` itself. If you invoke `openclaw_v9.py`/`racha.py` from inside `venv/`, make sure the venv's `python3` is the one resolved on `PATH` (e.g. keep the venv activated), or the `engine.py` subprocess may run outside the venv and fail to import `requests`. This is a known issue, not fixed in this phase.
+## Failure scenarios
+
+How the pipeline behaves when something goes wrong, limited to behavior implemented in the code today.
+
+| Scenario | Behavior | Verified by |
+|---|---|---|
+| Ollama unreachable / generation fails | `call_ollama` returns `ERROR_IA`, which `evaluar()` scores 0. The section now counts in the average (before, sections below 50 were excluded, hiding the failure) and flags the document, which blocks auto-publish | `tests/test_evaluar.py` (`ERROR_IA` → score 0), [ADR-002](./docs/adr/002-section-failure-blocks-publish.md), commit `58959fb` |
+| A section fails mid-document | Draft is still written to disk with a warning header for inspection, but `git push` to `_Review/` is skipped; the failure is logged explicitly | [ADR-002](./docs/adr/002-section-failure-blocks-publish.md), commit `58959fb` |
+| `git pull/push` hangs (auth prompt, network) | Every git call in the publish paths has a timeout (30 s for `pull`/`add`/`commit`, 60 s for `push`, 10 s for `rebase --abort`); `TimeoutExpired` is handled explicitly and aborts the publication with a log | [ADR-003](./docs/adr/003-process-group-isolation.md), commit `4eb6bee` |
+| `racha.py` exceeds the orchestrator timeout | `openclaw_v9.py` starts it in its own session and kills the whole process group (`killpg`), so no orphaned `engine.py` keeps running | [ADR-003](./docs/adr/003-process-group-isolation.md), commit `ae5a905` |
+| Pipeline lock held by a dead process | Lock is cleared only on a confirmed `ProcessLookupError`; any other error fails safe (refuses to start rather than risk a duplicate run) | [ADR-003](./docs/adr/003-process-group-isolation.md), commit `d1411d5` |
+| Repo cloned to a different path/machine | Pipeline paths resolve from `Path(__file__)` via `get_base_dir()`. The content repo and audit log default to `~/.openclaw/...` and can be overridden with `AUTHORITY_ENGINE_REPO_ROOT` / `AUTHORITY_ENGINE_AUDIT_LOG` | [ADR-004](./docs/adr/004-path-resolution-via-file.md), commit `be6767a` |
+
+Only the first row has an automated test, and it covers `evaluar()` alone; the other behaviors are verified by code review of the referenced commits.
 
 ---
 
