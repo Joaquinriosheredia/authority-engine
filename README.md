@@ -1,5 +1,7 @@
 # 🚀 DAM-Java-Mastery | Staff Engineer Technical Library
 
+![Tests](https://github.com/Joaquinriosheredia/authority-engine/actions/workflows/tests.yml/badge.svg)
+
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Joaquín_Ríos_Heredia-blue?style=flat&logo=linkedin)](https://www.linkedin.com/in/joaquinrios-dev-strategist/)
 [![Portfolio](https://img.shields.io/badge/Portfolio-Web-blue?style=flat&logo=github)](https://joaquinriosheredia.github.io/DAM-Java-Mastery/)
 [![GitHub](https://img.shields.io/badge/GitHub-Profile-lightgrey?style=flat&logo=github)](https://github.com/Joaquinriosheredia)
