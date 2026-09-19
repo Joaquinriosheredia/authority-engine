@@ -38,10 +38,12 @@ def test_case_insensitive():
 
 
 def test_colision_kafka_seguridad_gana_bigdata_por_orden_real():
-    """Comportamiento REAL actual: get_categoria() evalúa 07_BigData_Streaming
-    ANTES que 06_Seguridad (es el primer elif del código). Un tema que
+    """REGLA DE NEGOCIO PROTEGIDA (no es un bug pendiente): get_categoria()
+    clasifica en cascada y gana la primera categoría con keyword coincidente.
+    07_BigData_Streaming se evalúa ANTES que 06_Seguridad, así que un tema que
     contiene tanto "kafka" como "seguridad" devuelve 07_BigData_Streaming,
-    no 06_Seguridad, aunque ambos matcheen. Este test documenta ese orden,
-    no propone cambiarlo.
+    no 06_Seguridad, aunque ambos matcheen. Este orden es intencional; solo
+    debe cambiarse como decisión de política de clasificación, no como
+    refactor, y en ese caso este test debe actualizarse a propósito.
     """
     assert get_categoria("Seguridad en Kafka para microservicios") == "07_BigData_Streaming"

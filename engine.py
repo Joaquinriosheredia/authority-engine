@@ -436,6 +436,10 @@ def git_push_review(path, tema, score):
         log(f"⚠️  Git fallo: {e}")
 
 # ================== CATEGORIZACIÓN ==================
+# Classification rule: categories are evaluated in cascade order;
+# the first matching keyword determines the category.
+# This ordering is intentional and must be changed only as a
+# classification-policy decision, not as a refactor.
 def get_categoria(tema):
     tema_lower = tema.lower()
 
